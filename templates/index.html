@@ -4,68 +4,158 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>TechTales</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet" />
   <style>
     body {
-      font-family: sans-serif;
-      margin: 2rem;
+      margin: 0;
+      font-family: 'Inter', sans-serif;
+      background: radial-gradient(circle at 20% 30%, #1e1b4b, #0f172a);
+      color: #fff;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 2rem;
     }
-    .label {
-      font-weight: bold;
-      margin-top: 1rem;
+    header {
+      width: 100%;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      max-width: 1200px;
+      margin-bottom: 4rem;
     }
-    button {
-      margin-top: 1rem;
+    .nav-links button {
+      background: transparent;
+      color: #fff;
+      border: 1px solid #fff;
       padding: 0.5rem 1rem;
-      font-size: 1rem;
+      border-radius: 8px;
+      font-weight: 600;
+      margin-left: 1rem;
+      cursor: pointer;
     }
-    select {
-      font-size: 1rem;
-      margin-top: 0.5rem;
+    .headline {
+      text-align: center;
+      max-width: 700px;
     }
-    .output {
+    .headline h1 {
+      font-size: 3rem;
+      margin-bottom: 0.5rem;
+    }
+    .headline p {
+      font-size: 1.2rem;
+      color: #cbd5e1;
+    }
+    .interviewer-grid {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 1rem;
       margin-top: 2rem;
     }
+    .interviewer-card {
+      background-color: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 10px;
+      padding: 1rem;
+      width: 180px;
+      text-align: center;
+      cursor: pointer;
+      transition: transform 0.2s ease;
+    }
+    .interviewer-card:hover {
+      transform: scale(1.05);
+    }
+    .interviewer-card img {
+      width: 120px;
+      height: 120px;
+      border-radius: 12px;
+      object-fit: cover;
+      background-color: #0f172a;
+      margin-bottom: 0.5rem;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+    }
     audio {
+      margin-top: 1.5rem;
+      display: block;
+      margin-left: auto;
+      margin-right: auto;
+    }
+    audio:not(:last-child) {
+      display: none;
+    }
+    .intro-text {
+      font-size: 1rem;
+      color: #cbd5e1;
       margin-top: 1rem;
     }
   </style>
 </head>
 <body>
-  <h1>🎧 Welcome to TechTales</h1>
-  <p>Please choose your interviewer and start your storytelling journey.</p>
+  <header>
+    <div><strong>TECHTALES</strong></div>
+    <div class="nav-links">
+      <button>Explore</button>
+      <button>Sign Up</button>
+    </div>
+  </header>
+  <main class="headline" id="introSection">
+    <h1>Share Your Story</h1>
+    <p>AI-powered storytelling platform</p>
+    <p>Select your interviewer:</p>
+    <div class="interviewer-grid">
+      <div class="interviewer-card" onclick="startConversation('Joanna')">
+        <img src="/static/joanne.png" alt="Joanna" />
+        <p><strong>Joanna</strong></p>
+        <p>Friendly & professional (US)</p>
+      </div>
+      <div class="interviewer-card" onclick="startConversation('Matthew')">
+        <img src="/static/matt.png" alt="Matthew" />
+        <p><strong>Matthew</strong></p>
+        <p>Warm & steady (US)</p>
+      </div>
+      <div class="interviewer-card" onclick="startConversation('Amy')">
+        <img src="/static/amy.png" alt="Amy" />
+        <p><strong>Amy</strong></p>
+        <p>British & polished (UK)</p>
+      </div>
+      <div class="interviewer-card" onclick="startConversation('Brian')">
+        <img src="/static/brian.png" alt="Brian" />
+        <p><strong>Brian</strong></p>
+        <p>Conversational & upbeat (UK)</p>
+      </div>
+      <div class="interviewer-card" onclick="startConversation('Ivy')">
+        <img src="/static/ivy.png" alt="Ivy" />
+        <p><strong>Ivy</strong></p>
+        <p>Young & energetic (US)</p>
+      </div>
+    </div>
+  </main>
 
-  <label for="voiceSelect" class="label">Choose Your Interviewer:</label>
-  <select id="voiceSelect">
-    <option value="Joanna">Joanna – Friendly & professional (US)</option>
-    <option value="Matthew">Matthew – Warm & steady (US)</option>
-    <option value="Amy">Amy – British & polished (UK)</option>
-    <option value="Brian">Brian – Conversational & upbeat (UK)</option>
-    <option value="Ivy">Ivy – Young & energetic (US)</option>
-  </select>
-
-  <br />
-  <button id="startBtn">▶️ Start Conversation</button>
-  <button id="recordBtn" style="display:none;"> 🎤 Start Recording </button>
-
-  <div class="output">
+  <div class="headline" id="conversationSection" style="display:none;">
+    <h2 id="interviewerName"></h2>
+    <p class="intro-text" id="introText"></p>
+    <audio id="introAudio" controls style="display:none;"></audio>
+    <audio id="audioPlayer" controls style="display:none;"></audio>
+    <button id="recordBtn" style="display:none;">🎤 Start Recording</button>
     <p class="label">You said:</p>
     <p id="transcript">...</p>
-
     <p class="label">Claude replied:</p>
     <p id="response">...</p>
-
-    <audio id="introAudio" style="display:none;"></audio>
-    <audio id="audioPlayer" controls style="display:none;"></audio>
   </div>
 
   <script>
+    let selectedVoice = "";
+
     const recordBtn = document.getElementById("recordBtn");
-    const startBtn = document.getElementById("startBtn");
     const transcriptEl = document.getElementById("transcript");
     const responseEl = document.getElementById("response");
     const audioPlayer = document.getElementById("audioPlayer");
     const introAudio = document.getElementById("introAudio");
-    const voiceSelect = document.getElementById("voiceSelect");
+    const introSection = document.getElementById("introSection");
+    const conversationSection = document.getElementById("conversationSection");
+    const interviewerName = document.getElementById("interviewerName");
+    const introTextEl = document.getElementById("introText");
 
     let mediaRecorder;
     let chunks = [];
@@ -79,13 +169,33 @@
       return sessionId;
     }
 
-    startBtn.addEventListener("click", async () => {
-      startBtn.disabled = true;
-      const voice = voiceSelect.value;
+    // Typing effect for progressive text display
+    function typeText(element, text, delay = 60) {
+      element.textContent = "";
+      let i = 0;
+      const interval = setInterval(() => {
+        if (i < text.length) {
+          element.textContent += text.charAt(i);
+          i++;
+        } else {
+          clearInterval(interval);
+        }
+      }, delay);
+    }
+
+    async function startConversation(voice) {
+      selectedVoice = voice;
+      introSection.style.display = "none";
+      conversationSection.style.display = "block";
+      interviewerName.textContent = `${voice}`;
+
+      const introText = `Hello, I'm ${voice}, your interviewer for a podcast called TechTales. Please tell us a little about yourself and what you want to talk about today.`;
+      // introTextEl.textContent = introText;
+      typeText(introTextEl, introText);
 
       const res = await fetch("/intro", {
         method: "POST",
-        body: JSON.stringify({ voice_id: voice }),
+        body: JSON.stringify({ voice_id: selectedVoice }),
         headers: { "Content-Type": "application/json" },
       });
 
@@ -97,7 +207,7 @@
       introAudio.onended = () => {
         recordBtn.style.display = "inline-block";
       };
-    });
+    }
 
     recordBtn.addEventListener("click", async () => {
       if (!mediaRecorder || mediaRecorder.state === "inactive") {
@@ -114,7 +224,7 @@
           const formData = new FormData();
           formData.append("audio", blob, "input.webm");
           formData.append("session_id", getSessionId());
-          formData.append("voice_id", voiceSelect.value);
+          formData.append("voice_id", selectedVoice);
 
           const res = await fetch("/process", {
             method: "POST",
@@ -123,9 +233,11 @@
 
           const data = await res.json();
           transcriptEl.textContent = data.transcript || "[No transcript returned]";
-          responseEl.textContent = data.response || "[No response returned]";
+          typeText(responseEl, data.response || "[No response returned]");
+          interviewerName.textContent = selectedVoice;
           audioPlayer.src = data.audio_url;
           audioPlayer.style.display = "block";
+          introAudio.style.display = "none";
           audioPlayer.play();
         };
       } else {

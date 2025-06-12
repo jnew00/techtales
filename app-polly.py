@@ -86,7 +86,8 @@ def process():
     return jsonify({
         "transcript": transcript,
         "response": response_text,
-        "audio_url": f"/static/{audio_filename}"
+        "audio_url": f"/static/{audio_filename}",
+        "audio_id": f"audio-{uuid.uuid4()}"
     })
 
 
