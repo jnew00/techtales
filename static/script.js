@@ -1,13 +1,14 @@
 const recordBtn = document.getElementById("recordBtn");
+const startBtn = document.getElementById("startBtn");
 const transcriptEl = document.getElementById("transcript");
 const responseEl = document.getElementById("response");
 const audioPlayer = document.getElementById("audioPlayer");
+const introAudio = document.getElementById("introAudio");
 const voiceSelect = document.getElementById("voiceSelect");
 
 let mediaRecorder;
 let chunks = [];
 
-// Get or create session ID
 function getSessionId() {
   let sessionId = localStorage.getItem("session_id");
   if (!sessionId) {
@@ -17,29 +18,27 @@ function getSessionId() {
   return sessionId;
 }
 
-// 🎤 Voice prompt on load
-window.addEventListener("DOMContentLoaded", () => {
-  const welcome = "To start, please tell us a little about yourself and what you want to talk about today. We're excited to hear your story.";
+// 🎬 Intro playback from backend
+startBtn.addEventListener("click", async () => {
+  startBtn.disabled = true;
+  const voice = voiceSelect.value;
 
-  const speakWelcome = () => {
-    const selectedVoice = voiceSelect.value;
-    const utterance = new SpeechSynthesisUtterance(welcome);
-    utterance.lang = "en-US";
-    utterance.pitch = 1;
-    utterance.rate = 1;
-    utterance.voice = speechSynthesis.getVoices().find(v => v.name.includes(selectedVoice)) || null;
-    speechSynthesis.speak(utterance);
+  const res = await fetch("/intro", {
+    method: "POST",
+    body: JSON.stringify({ voice_id: voice }),
+    headers: { "Content-Type": "application/json" }
+  });
+
+  const data = await res.json();
+  introAudio.src = data.audio_url;
+  introAudio.style.display = "block";
+  introAudio.play();
+  introAudio.onended = () => {
+    recordBtn.style.display = "inline-block";
   };
-
-  // Wait for voices to load
-  if (speechSynthesis.getVoices().length === 0) {
-    speechSynthesis.onvoiceschanged = speakWelcome;
-  } else {
-    speakWelcome();
-  }
 });
 
-// 🎙️ Start/Stop Recording
+// 🎙️ Recording flow
 recordBtn.addEventListener("click", async () => {
   if (!mediaRecorder || mediaRecorder.state === "inactive") {
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -61,8 +60,8 @@ recordBtn.addEventListener("click", async () => {
         method: "POST",
         body: formData
       });
-      const data = await res.json();
 
+      const data = await res.json();
       transcriptEl.textContent = data.transcript || "[No transcript returned]";
       responseEl.textContent = data.response || "[No response returned]";
       audioPlayer.src = data.audio_url;

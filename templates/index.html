@@ -1,17 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TechTales</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      margin: 2rem;
+    }
+    .label {
+      font-weight: bold;
+      margin-top: 1rem;
+    }
+    button {
+      margin-top: 1rem;
+      padding: 0.5rem 1rem;
+      font-size: 1rem;
+    }
+    select {
+      font-size: 1rem;
+      margin-top: 0.5rem;
+    }
+    .output {
+      margin-top: 2rem;
+    }
+    audio {
+      margin-top: 1rem;
+    }
+  </style>
+</head>
 <body>
-  <h1>🎙️ Welcome to TechTales</h1>
-  <p>To start, please tell us a little about yourself and what you want to talk about today. We're excited to hear your story.</p>
+  <h1>🎧 Welcome to TechTales</h1>
+  <p>Please choose your interviewer and start your storytelling journey.</p>
 
-  <label for="voiceSelect" class="label">Choose Your Interviewer’s Voice:</label>
+  <label for="voiceSelect" class="label">Choose Your Interviewer:</label>
   <select id="voiceSelect">
-    <option value="Joanna">Joanna (friendly)</option>
-    <option value="Matthew">Matthew (calm)</option>
-    <option value="Amy">Amy (UK)</option>
-    <option value="Brian">Brian (UK)</option>
-    <option value="Ivy">Ivy (youthful)</option>
+    <option value="Joanna">Joanna – Friendly & professional (US)</option>
+    <option value="Matthew">Matthew – Warm & steady (US)</option>
+    <option value="Amy">Amy – British & polished (UK)</option>
+    <option value="Brian">Brian – Conversational & upbeat (UK)</option>
+    <option value="Ivy">Ivy – Young & energetic (US)</option>
   </select>
 
-  <button id="recordBtn">🎙️ Start Recording</button>
+  <br />
+  <button id="startBtn">▶️ Start Conversation</button>
+  <button id="recordBtn" style="display:none;"> 🎤 Start Recording </button>
 
   <div class="output">
     <p class="label">You said:</p>
@@ -20,8 +54,85 @@
     <p class="label">Claude replied:</p>
     <p id="response">...</p>
 
+    <audio id="introAudio" style="display:none;"></audio>
     <audio id="audioPlayer" controls style="display:none;"></audio>
   </div>
 
-  <script src="/static/script.js"></script>
+  <script>
+    const recordBtn = document.getElementById("recordBtn");
+    const startBtn = document.getElementById("startBtn");
+    const transcriptEl = document.getElementById("transcript");
+    const responseEl = document.getElementById("response");
+    const audioPlayer = document.getElementById("audioPlayer");
+    const introAudio = document.getElementById("introAudio");
+    const voiceSelect = document.getElementById("voiceSelect");
+
+    let mediaRecorder;
+    let chunks = [];
+
+    function getSessionId() {
+      let sessionId = localStorage.getItem("session_id");
+      if (!sessionId) {
+        sessionId = "session-" + Date.now() + "-" + Math.floor(Math.random() * 100000);
+        localStorage.setItem("session_id", sessionId);
+      }
+      return sessionId;
+    }
+
+    startBtn.addEventListener("click", async () => {
+      startBtn.disabled = true;
+      const voice = voiceSelect.value;
+
+      const res = await fetch("/intro", {
+        method: "POST",
+        body: JSON.stringify({ voice_id: voice }),
+        headers: { "Content-Type": "application/json" },
+      });
+
+      const data = await res.json();
+      introAudio.src = data.audio_url;
+      introAudio.style.display = "block";
+      introAudio.play();
+
+      introAudio.onended = () => {
+        recordBtn.style.display = "inline-block";
+      };
+    });
+
+    recordBtn.addEventListener("click", async () => {
+      if (!mediaRecorder || mediaRecorder.state === "inactive") {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        mediaRecorder = new MediaRecorder(stream);
+        mediaRecorder.start();
+        recordBtn.textContent = "⏹️ Stop Recording";
+        chunks = [];
+
+        mediaRecorder.ondataavailable = (e) => chunks.push(e.data);
+
+        mediaRecorder.onstop = async () => {
+          const blob = new Blob(chunks, { type: "audio/webm" });
+          const formData = new FormData();
+          formData.append("audio", blob, "input.webm");
+          formData.append("session_id", getSessionId());
+          formData.append("voice_id", voiceSelect.value);
+
+          const res = await fetch("/process", {
+            method: "POST",
+            body: formData,
+          });
+
+          const data = await res.json();
+          transcriptEl.textContent = data.transcript || "[No transcript returned]";
+          responseEl.textContent = data.response || "[No response returned]";
+          audioPlayer.src = data.audio_url;
+          audioPlayer.style.display = "block";
+          audioPlayer.play();
+        };
+      } else {
+        mediaRecorder.stop();
+        recordBtn.textContent = "🎤 Start Recording";
+      }
+    });
+  </script>
 </body>
+</html>
