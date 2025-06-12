@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Voice Agent with Amazon Polly</title>
+</head>
+<body>
+  <h2>🔊 Enter text to synthesize:</h2>
+  <form id="ttsForm">
+    <input type="text" id="textInput" name="text" placeholder="Type something..." size="40" />
+    <button type="submit">Speak</button>
+  </form>
+
+  <h3>▶️ Playback:</h3>
+  <audio id="audioPlayer" controls style="display:none;"></audio>
+
+  <script>
+    const form = document.getElementById("ttsForm");
+    const audioPlayer = document.getElementById("audioPlayer");
+
+    form.addEventListener("submit", async function (e) {
+      e.preventDefault();
+      const text = document.getElementById("textInput").value;
+      const formData = new FormData();
+      formData.append("text", text);
+
+      const speakResponse = await fetch("/speak", {
+        method: "POST",
+        body: formData
+      });
+
+      const filename = await speakResponse.text();
+      audioPlayer.src = `/audio/${filename}`;
+      audioPlayer.style.display = "block";
+      audioPlayer.play();
+    });
+  </script>
+</body>
+</html>
