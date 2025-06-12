@@ -11,6 +11,7 @@ AUDIO_DIR = "audio"
 os.makedirs(AUDIO_DIR, exist_ok=True)
 
 # AWS Clients
+voiceid = "Emma"
 region = "us-east-2"
 bedrock = boto3.client("bedrock-runtime", region_name=region)
 polly = boto3.client("polly", region_name="us-east-1")  # neural support
@@ -105,7 +106,7 @@ def process():
     polly_response = polly.synthesize_speech(
         Text=claude_reply,
         OutputFormat="mp3",
-        VoiceId="Joanna",
+        VoiceId=voiceid,
         Engine="neural"
     )
     with open(mp3_path, "wb") as f:
