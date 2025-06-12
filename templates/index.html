@@ -1,15 +1,27 @@
-<!DOCTYPE html>
-<html>
-<head>
-  <title>Voice Agent</title>
-</head>
 <body>
-  <h2>🎤 Talk to Claude</h2>
+  <h1>🎙️ Welcome to TechTales</h1>
+  <p>To start, please tell us a little about yourself and what you want to talk about today. We're excited to hear your story.</p>
+
+  <label for="voiceSelect" class="label">Choose Your Interviewer’s Voice:</label>
+  <select id="voiceSelect">
+    <option value="Joanna">Joanna (friendly)</option>
+    <option value="Matthew">Matthew (calm)</option>
+    <option value="Amy">Amy (UK)</option>
+    <option value="Brian">Brian (UK)</option>
+    <option value="Ivy">Ivy (youthful)</option>
+  </select>
+
   <button id="recordBtn">🎙️ Start Recording</button>
-  <p><strong>You said:</strong> <span id="transcript"></span></p>
-  <p><strong>Claude replied:</strong> <span id="response"></span></p>
-  <audio id="audioPlayer" controls style="display:none;"></audio>
+
+  <div class="output">
+    <p class="label">You said:</p>
+    <p id="transcript">...</p>
+
+    <p class="label">Claude replied:</p>
+    <p id="response">...</p>
+
+    <audio id="audioPlayer" controls style="display:none;"></audio>
+  </div>
 
   <script src="/static/script.js"></script>
 </body>
-</html>
