@@ -1,3 +1,5 @@
 audio/
 static/*.mp3
 static/*.webm
+.DS_Store
+static/temp_audio.webm
