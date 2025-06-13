@@ -91,22 +91,6 @@
       color: #cbd5e1;
       margin-top: 1rem;
     }
-    #recordBtn {
-      position: fixed;
-      bottom: 2rem;
-      right: 2rem;
-      background-color: transparent;
-      background-image: url('/static/play.jpg');
-      background-size: cover;
-      background-position: center;
-      border: none;
-      width: 64px;
-      height: 64px;
-      border-radius: 50%;
-      cursor: pointer;
-      z-index: 999;
-      display: none;
-    }
   </style>
 </head>
 <body>
@@ -153,8 +137,6 @@
   <div class="headline" id="conversationSection" style="display:none;">
     <h2 id="interviewerName"></h2>
     <p class="intro-text" id="introText"></p>
-    <button id="startPlayBtn"></button>
-    <button id="recordBtn"></button>
     <p class="label">You said:</p>
     <p id="transcript">...</p>
     <p class="label">Response:</p>
@@ -162,11 +144,12 @@
     <audio id="audioPlayer" controls class="player-audio"></audio>
   </div>
 
+  <button id="actionBtn" title="Start" style="background-color: transparent; background-image: url('/static/play.jpg'); background-size: cover; background-position: center; border: none; width: 64px; height: 64px; border-radius: 50%; cursor: pointer; position: fixed; bottom: 2rem; right: 2rem; z-index: 999;"></button>
+
   <script>
     let selectedVoice = "";
     let recording = false;
 
-    const recordBtn = document.getElementById("recordBtn");
     const transcriptEl = document.getElementById("transcript");
     const responseEl = document.getElementById("response");
     const audioPlayer = document.getElementById("audioPlayer");
@@ -174,10 +157,6 @@
     const conversationSection = document.getElementById("conversationSection");
     const interviewerName = document.getElementById("interviewerName");
     const introTextEl = document.getElementById("introText");
-    const startPlayBtn = document.getElementById("startPlayBtn");
-
-    let mediaRecorder;
-    let chunks = [];
 
     function getSessionId() {
       let sessionId = localStorage.getItem("session_id");
@@ -208,7 +187,8 @@
       conversationSection.style.display = "block";
       interviewerName.textContent = `${voice}`;
 
-      const introText = `Hello, I'm ${voice}, your interviewer for a podcast called TechTales. Please tell us a little about yourself and what you want to talk about today.`;
+      // const introText = `Hello, I'm ${voice}, your interviewer for a podcast called TechTales. Please tell us a little about yourself and what you want to talk about today.`;
+            const introText = `Hello`;
       typeText(introTextEl, introText);
 
       const res = await fetch("/intro", {
@@ -221,23 +201,21 @@
       if (data.audio_url) {
         audioPlayer.src = data.audio_url;
         audioPlayer.style.display = "block";
-        audioPlayer.play(); // Play immediately to sync with typing
+        try {
+          await audioPlayer.play();
+        } catch (err) {
+          console.warn("Autoplay failed:", err);
+        }
       }
-
-      recordBtn.style.display = "inline-block";
-      startPlayBtn.style.display = "inline-block";
-      audioPlayer.scrollIntoView({ behavior: "smooth", block: "end" });
     }
 
-    startPlayBtn.addEventListener("click", () => {
-      audioPlayer.play();
-    });
+    const actionBtn = document.getElementById("actionBtn");
+    let actionState = "record"; // 'record' -> 'stop'
+    let mediaRecorder;
+    let chunks = [];
 
-    recordBtn.addEventListener("click", async () => {
-      if (!mediaRecorder || mediaRecorder.state === "inactive") {
-        recordBtn.style.backgroundImage = "url('/static/stop.jpg')";
-        recording = true;
-
+    actionBtn.addEventListener("click", async () => {
+      if (actionState === "record") {
         try {
           const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
           mediaRecorder = new MediaRecorder(stream);
@@ -248,11 +226,14 @@
           };
 
           mediaRecorder.onstop = async () => {
-            recording = false;
             const blob = new Blob(chunks, { type: "audio/webm" });
             if (blob.size < 1000) {
               alert("Recording failed. Please try again.");
-              recordBtn.style.backgroundImage = "url('/static/start.jpg')";
+              setTimeout(() => {
+                actionBtn.style.backgroundImage = "url('/static/play.jpg')";
+                actionBtn.title = "Start";
+                actionState = "record";
+              }, 0);
               return;
             }
 
@@ -262,15 +243,16 @@
             formData.append("voice_id", selectedVoice);
 
             try {
-              const res = await fetch("/process", {
-                method: "POST",
-                body: formData,
-              });
-
+              const res = await fetch("/process", { method: "POST", body: formData });
               const data = await res.json();
+
               if (!data.transcript || data.transcript.trim() === "") {
                 alert("No voice detected in the recording. Please try again.");
-                recordBtn.style.backgroundImage = "url('/static/play.jpg')";
+                setTimeout(() => {
+                  actionBtn.style.backgroundImage = "url('/static/play.jpg')";
+                  actionBtn.title = "Start";
+                  actionState = "record";
+                }, 0);
                 return;
               }
 
@@ -285,21 +267,43 @@
             } catch (err) {
               alert("Processing error. Please check your microphone input or try reloading the page.");
               console.error(err);
+              setTimeout(() => {
+                actionBtn.style.backgroundImage = "url('/static/play.jpg')";
+                actionBtn.title = "Start";
+                actionState = "record";
+              }, 0);
+              return;
             }
 
-            recordBtn.style.backgroundImage = "url('/static/play.jpg')";
+            setTimeout(() => {
+              actionBtn.style.backgroundImage = "url('/static/play.jpg')";
+              actionBtn.title = "Start";
+              actionState = "record";
+            }, 0);
           };
 
           mediaRecorder.start();
+          actionBtn.style.backgroundImage = "url('/static/stop.jpg')";
+          actionBtn.title = "Stop Recording";
+          actionState = "stop";
         } catch (err) {
           alert("Microphone access denied or not working.");
           console.error(err);
-          recordBtn.style.backgroundImage = "url('/static/play.jpg')";
+          resetActionBtn();
         }
-      } else if (recording) {
-        mediaRecorder.stop();
+      } else if (actionState === "stop") {
+        if (mediaRecorder && mediaRecorder.state !== "inactive") {
+          mediaRecorder.stop();
+        }
+        resetActionBtn();
       }
     });
+
+    function resetActionBtn() {
+      actionBtn.style.backgroundImage = "url('/static/start.jpg')";
+      actionBtn.title = "Start Recording";
+      actionState = "record";
+    }
   </script>
 </body>
 </html>

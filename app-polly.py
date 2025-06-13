@@ -32,8 +32,9 @@ def serve_static(filename):
 @app.route("/intro", methods=["POST"])
 def intro():
     voice_id = request.json.get("voice_id", "Joanna")
-    intro_text = f"Hello, I'm {voice_id}, your interviewer for a podcast called TechTales. Please tell us a little about yourself and what you want to talk about today."
-    
+    # intro_text = f"Hello, I'm {voice_id}, your interviewer for a podcast called TechTales. Please tell us a little about yourself and what you want to talk about today."
+    intro_text = f"Hello"
+
     polly_response = polly.synthesize_speech(
         Engine="standard",
         OutputFormat="mp3",
