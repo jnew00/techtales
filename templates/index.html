@@ -201,6 +201,19 @@
 
   <button id="actionBtn" title="Start" style="background-color: transparent; background-image: url('/static/play.jpg'); background-size: cover; background-position: center; border: none; width: 64px; height: 64px; border-radius: 50%; cursor: pointer; position: fixed; bottom: 2rem; right: 2rem; z-index: 999;"></button>
 
+  <button id="endConversationBtn" style="margin-top: 2rem; background-color: #ef4444; color: white; border: none; padding: 0.75rem 1.5rem; border-radius: 8px; font-weight: bold; cursor: pointer;">
+    End Conversation
+  </button>
+
+  <div id="loadingModal" style="display:none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.7); z-index: 1000; justify-content: center; align-items: center; flex-direction: column; color: white; font-size: 1.2rem;">
+    <div style="text-align: center;">
+      <p>Analyzing Conversation...</p>
+      <div style="width: 300px; height: 10px; background-color: #334155; border-radius: 5px; overflow: hidden; margin-top: 1rem;">
+        <div id="progressBar" style="width: 0%; height: 100%; background-color: #fbbf24; transition: width 1s;"></div>
+      </div>
+    </div>
+  </div>
+
   <script>
     let selectedVoice = "";
     let recording = false;
@@ -465,6 +478,111 @@
       actionBtn.title = "Start Recording";
       actionState = "record";
     }
+</script>
+  <script>
+    const endConversationBtn = document.getElementById("endConversationBtn");
+    endConversationBtn.addEventListener("click", async () => {
+      // Show loading modal and start progress bar animation
+      const loadingModal = document.getElementById("loadingModal");
+      const progressBar = document.getElementById("progressBar");
+      loadingModal.style.display = "flex";
+      let progress = 0;
+      const progressInterval = setInterval(() => {
+        progress = Math.min(progress + 2, 100);
+        progressBar.style.width = progress + "%";
+      }, 300);
+
+      const sessionId = getSessionId();
+      const res = await fetch("/end", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ session_id: sessionId })
+      });
+
+      const data = await res.json();
+
+      // Stop progress animation and hide modal
+      clearInterval(progressInterval);
+      loadingModal.style.display = "none";
+      progressBar.style.width = "0%";
+
+      if (data.summary || data.tags || data.title) {
+        introSection.style.display = "none";
+        conversationSection.style.display = "block";
+        actionBtn.style.display = "none";
+        interviewerName.style.display = "none";
+
+        // Hide the chat container and related UI
+        chatLog.style.display = "none";
+        audioPlayer.style.display = "none";
+        endConversationBtn.style.display = "none";
+
+        // Create a clean summary container
+        const summaryContainer = document.createElement("div");
+        summaryContainer.style.marginTop = "1rem";
+        summaryContainer.style.padding = "1rem";
+        summaryContainer.style.background = "#1e293b";
+        summaryContainer.style.borderRadius = "10px";
+
+        // Append title
+        const titleEl = document.createElement("h3");
+        // The following line was missing previously
+        titleEl.textContent = data.title ;
+        titleEl.style.color = "#fbbf24";
+
+        // const titleText = document.createElement("div");
+        // titleText.textContent = data.title || "N/A";
+        // titleText.style.color = "#fbbf24";
+
+        // Append summary (no duplicated heading, just inner HTML)
+        const summaryText = document.createElement("div");
+        summaryText.innerHTML = data.summary || "N/A";
+
+        // Append tags
+        const tagsEl = document.createElement("h3");
+        tagsEl.textContent = "Semantic Tags";
+        tagsEl.style.color = "#fbbf24";
+        const tagList = document.createElement("ul");
+        tagList.style.marginLeft = "1rem";
+        (data.tags || []).forEach(tag => {
+          const li = document.createElement("li");
+          li.textContent = tag;
+          tagList.appendChild(li);
+        });
+
+        summaryContainer.appendChild(titleEl);
+        summaryContainer.appendChild(summaryText);
+        summaryContainer.appendChild(tagsEl);
+        summaryContainer.appendChild(tagList);
+
+        // Render emotional themes if present
+        if (data.emotional_themes && data.emotional_themes.length > 0) {
+          const emotionsEl = document.createElement("h3");
+          emotionsEl.textContent = "Emotional Themes";
+          emotionsEl.style.color = "#fbbf24";
+          const emotionList = document.createElement("ul");
+          emotionList.style.marginLeft = "1rem";
+          data.emotional_themes.forEach(theme => {
+            const li = document.createElement("li");
+            li.innerHTML = `<strong>${theme.theme}:</strong> ${theme.description}`;
+            emotionList.appendChild(li);
+          });
+          summaryContainer.appendChild(emotionsEl);
+          summaryContainer.appendChild(emotionList);
+        }
+
+        // Render summary in a new wrapper, not chatLog
+        const summaryWrapper = document.createElement("div");
+        summaryWrapper.style.width = "100%";
+        summaryWrapper.style.maxWidth = "900px";
+        summaryWrapper.appendChild(summaryContainer);
+        conversationSection.innerHTML = "";
+        conversationSection.appendChild(summaryWrapper);
+        conversationSection.scrollIntoView({ behavior: 'smooth' });
+      } else {
+        alert("Failed to generate summary.");
+      }
+    });
   </script>
 </body>
 </html>

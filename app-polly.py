@@ -5,6 +5,7 @@ import boto3
 import whisper
 from datetime import datetime, timezone
 from flask import Flask, request, jsonify, render_template, send_from_directory
+from boto3.dynamodb.conditions import Key
 
 app = Flask(__name__)
 UPLOAD_FOLDER = "static"
@@ -93,6 +94,7 @@ def process():
 
 
 # Claude + Dynamo functions
+# Claude + Dynamo functions
 def chat_with_claude(messages, voice_id):
     # Determine style prompt based on voice
     style_prompts = {
@@ -127,7 +129,7 @@ def chat_with_claude(messages, voice_id):
 def load_conversation(session_id):
     try:
         response = table.query(
-            KeyConditionExpression=boto3.dynamodb.conditions.Key("SessionId").eq(session_id),
+            KeyConditionExpression=Key("SessionId").eq(session_id),
             ScanIndexForward=True
         )
         items = response.get("Items", [])
@@ -150,6 +152,111 @@ def save_message(session_id, role, message_text):
         })
     except Exception as e:
         print("Error saving message:", e)
+
+
+# End Conversation Route
+@app.route("/end", methods=["POST"])
+def end_conversation():
+    session_id = request.json.get("session_id")
+    if not session_id:
+        return jsonify({"error": "Missing session_id"}), 400
+
+    try:
+        items = load_conversation_from_dynamo(session_id)
+        transcript_text = flatten_messages(items)
+        print("TRANSCRIPT TEXT:\n", transcript_text)
+
+        summary_text = summarize_conversation(transcript_text)
+        print("RAW SUMMARY TEXT:\n", summary_text)
+        summary_text = summary_text.strip()
+        if summary_text.startswith("```json"):
+            summary_text = summary_text.replace("```json", "").replace("```", "").strip()
+        json_data = json.loads(summary_text)
+        # Debug: Print parsed keys and structure of emotional themes
+        print("Parsed JSON keys:", json_data.keys())
+        for theme in json_data.get("emotional_themes", []):
+            print("Theme entry:", theme)
+
+        return jsonify(json_data)
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
+
+
+# Helper functions for end conversation
+def load_conversation_from_dynamo(session_id):
+    response = table.query(
+        KeyConditionExpression=Key("SessionId").eq(session_id),
+        ScanIndexForward=True
+    )
+    items = response.get("Items", [])
+    if not items:
+        raise ValueError(f"No conversation found for SessionId: {session_id}")
+    return items
+
+def flatten_messages(items):
+    transcript = ""
+    for item in items:
+        role = item.get("Role", "user").capitalize()
+        message = item.get("Message", "").strip()
+        transcript += f"{role}: {message}\n"
+    return transcript
+
+def summarize_conversation(transcript_text):
+    body = {
+        "anthropic_version": "bedrock-2023-05-31",
+        "max_tokens": 1024,
+        "temperature": 0.5,
+        "messages": [
+            {
+                "role": "user",
+                "content": [
+                    {
+                        "type": "text",
+                        "text": f'''
+Here is a transcript of a storytelling conversation.
+
+Return a JSON object with the following structure:
+{{
+  "summary": "A 3–4 sentence summary of the story.",
+  "tags": ["tag1", "tag2", "tag3", ...],
+  "emotional_themes": [
+    {{
+      "theme": "A short, clearly defined emotion or psychological theme (e.g., 'Pride in accomplishment', 'Playful testing', 'Affectionate frustration')",
+      "description": "A one-sentence explanation summarizing how this theme appears in the conversation."
+    }},
+    ...
+  ],
+  "title": "One-sentence story title"
+}}
+
+Transcript:
+{transcript_text}
+'''
+                    }
+                ]
+            }
+        ]
+    }
+
+    response = bedrock.invoke_model(
+        modelId=model_id,
+        contentType="application/json",
+        accept="application/json",
+        body=json.dumps(body)
+    )
+
+    try:
+        result = json.loads(response["body"].read())
+        content_blocks = result.get("content", [])
+        if not content_blocks or "text" not in content_blocks[0]:
+            raise ValueError("Claude returned empty or malformed response")
+        return content_blocks[0]["text"]
+    except Exception as e:
+        print("ERROR parsing Claude response:", e)
+        print("RAW response:", response)
+        raise
 
 
 if __name__ == "__main__":
