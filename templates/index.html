@@ -91,6 +91,54 @@
       color: #cbd5e1;
       margin-top: 1rem;
     }
+    .chat-container {
+      max-height: 60vh;
+      overflow-y: auto;
+      padding: 1rem;
+      border: 1px solid #334155;
+      border-radius: 10px;
+      background-color: #1e293b;
+      margin-top: 1rem;
+      width: 100%;
+    }
+    .chat-entry {
+      display: flex;
+      align-items: flex-start;
+      margin-bottom: 1rem;
+    }
+    .chat-entry.user {
+      justify-content: flex-end;
+    }
+    .chat-entry.ai {
+      justify-content: flex-start;
+    }
+    .chat-entry .speaker {
+      font-weight: bold;
+      flex-shrink: 0;
+      margin-right: 0.5rem;
+    }
+    .chat-entry.ai .speaker {
+      color: #fbbf24; /* gold for AI */
+    }
+    .chat-entry.user .speaker {
+      color: #60a5fa; /* blue for user */
+    }
+    .chat-entry .bubble {
+      padding: 0.75rem;
+      border-radius: 10px;
+      color: #fff;
+      max-width: 75%;
+    }
+
+    .chat-entry.ai .bubble {
+      background-color: #fbbf24; /* gold bubble for AI */
+      color: #1e293b;
+    }
+
+    .chat-entry.user .bubble {
+      background-color: #3b82f6; /* blue bubble for user */
+      color: #fff;
+    }
   </style>
 </head>
 <body>
@@ -136,12 +184,8 @@
 
   <div class="headline" id="conversationSection" style="display:none;">
     <h2 id="interviewerName"></h2>
-    <p class="intro-text" id="introText"></p>
-    <p class="label">You said:</p>
-    <p id="transcript">...</p>
-    <p class="label">Response:</p>
-    <p id="response">...</p>
-    <audio id="audioPlayer" controls class="player-audio"></audio>
+    <div class="chat-container" id="chatLog"></div>
+    <audio id="audioPlayer" controls class="player-audio" style="display:none;"></audio>
   </div>
 
   <button id="actionBtn" title="Start" style="background-color: transparent; background-image: url('/static/play.jpg'); background-size: cover; background-position: center; border: none; width: 64px; height: 64px; border-radius: 50%; cursor: pointer; position: fixed; bottom: 2rem; right: 2rem; z-index: 999;"></button>
@@ -156,7 +200,28 @@
     const introSection = document.getElementById("introSection");
     const conversationSection = document.getElementById("conversationSection");
     const interviewerName = document.getElementById("interviewerName");
-    const introTextEl = document.getElementById("introText");
+    const chatLog = document.getElementById("chatLog");
+    function appendChatEntry(speaker, message) {
+      const entry = document.createElement("div");
+      entry.className = "chat-entry " + (speaker === "You" ? "user" : "ai");
+
+      const speakerEl = document.createElement("div");
+      speakerEl.className = "speaker";
+      speakerEl.textContent = speaker;
+
+      const bubble = document.createElement("div");
+      bubble.className = "bubble";
+      if (speaker === "You") {
+        bubble.textContent = message;
+      } else {
+        typeText(bubble, message);
+      }
+
+      entry.appendChild(speakerEl);
+      entry.appendChild(bubble);
+      chatLog.appendChild(entry);
+      chatLog.scrollTop = chatLog.scrollHeight;
+    }
 
     function getSessionId() {
       let sessionId = localStorage.getItem("session_id");
@@ -186,10 +251,8 @@
       introSection.style.display = "none";
       conversationSection.style.display = "block";
       interviewerName.textContent = `${voice}`;
-
-      // const introText = `Hello, I'm ${voice}, your interviewer for a podcast called TechTales. Please tell us a little about yourself and what you want to talk about today.`;
-            const introText = `Hello`;
-      typeText(introTextEl, introText);
+      const introText = `Hello, I'm ${voice}, your interviewer for a podcast called TechTales. Please tell us a little about yourself and what you want to talk about today.`;
+      appendChatEntry(voice, introText);
 
       const res = await fetch("/intro", {
         method: "POST",
@@ -256,8 +319,8 @@
                 return;
               }
 
-              transcriptEl.textContent = data.transcript || "[No transcript returned]";
-              typeText(responseEl, data.response || "[No response returned]");
+              appendChatEntry("You", data.transcript || "[No transcript returned]");
+              appendChatEntry(selectedVoice, data.response || "[No response returned]");
               interviewerName.textContent = selectedVoice;
               if (data.audio_url) {
                 audioPlayer.src = data.audio_url;
