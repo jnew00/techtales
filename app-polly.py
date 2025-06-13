@@ -33,8 +33,8 @@ def serve_static(filename):
 @app.route("/intro", methods=["POST"])
 def intro():
     voice_id = request.json.get("voice_id", "Joanna")
-    # intro_text = f"Hello, I'm {voice_id}, your interviewer for a podcast called TechTales. Please tell us a little about yourself and what you want to talk about today."
-    intro_text = f"Hello"
+    intro_text = f"Hello, I'm {voice_id}, your interviewer for a podcast called TechTales. Please tell us a little about yourself and what you want to talk about today."
+    # intro_text = f"Hello"
 
     polly_response = polly.synthesize_speech(
         Engine="standard",
@@ -101,7 +101,7 @@ def chat_with_claude(messages, voice_id):
         "Joanna": "You are Joanna, a warm and thoughtful podcast interviewer with a knack for drawing out personal stories. ",
         "Matthew": "You're Matthew, a bold, funky host with a loud laugh and a love of tangents. Keep things lively! ",
         "Ivy": "You're Ivy, introspective and poetic. You ask questions like a spoken word artist probing for deeper truths. ",
-        "Brian": "You're Brian, a laid-back, sarcastic host who keeps it casual but insightful and speaks like Seinfeld.",
+        "Brian": "You're Brian, a laid-back, sarcastic host who keeps it casual but insightful and speaks like a UK Jerry Seinfeld.",
         "Amy": "You're Amy, curious and enthusiastic, with a contagious energy and lots of follow-ups."
     }
     default_prompt = "You are an interviewer for a podcast. Keep responses brief (1-2 sentences), ask insightful follow-up questions, and stay on topic unless the user signals otherwise. Avoid rambling or unnecessary elaboration."
