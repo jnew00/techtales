@@ -92,14 +92,22 @@
       margin-top: 1rem;
     }
     .chat-container {
-      max-height: 60vh;
+      width: 100%;
+      min-width: 900px;
+      max-width: 900px;
+      height: 500px;
       overflow-y: auto;
       padding: 1rem;
       border: 1px solid #334155;
       border-radius: 10px;
       background-color: #1e293b;
       margin-top: 1rem;
-      width: 100%;
+      scrollbar-width: none; /* Firefox */
+      scroll-behavior: smooth;
+    }
+
+    .chat-container::-webkit-scrollbar {
+      display: none; /* Chrome, Safari */
     }
     .chat-entry {
       display: flex;
@@ -128,6 +136,8 @@
       border-radius: 10px;
       color: #fff;
       max-width: 75%;
+      width: fit-content;
+      word-wrap: break-word;
     }
 
     .chat-entry.ai .bubble {
@@ -182,9 +192,10 @@
     </div>
   </main>
 
-  <div class="headline" id="conversationSection" style="display:none;">
-    <h2 id="interviewerName"></h2>
+  <div id="conversationSection" style="display:none;">
+    <h2 id="interviewerName" style="text-align: center;"></h2>
     <div class="chat-container" id="chatLog"></div>
+    <div id="liveTranscript" style="font-style: italic; color: #94a3b8; margin-top: 1rem;"></div>
     <audio id="audioPlayer" controls class="player-audio" style="display:none;"></audio>
   </div>
 
@@ -250,7 +261,7 @@
       selectedVoice = voice;
       introSection.style.display = "none";
       conversationSection.style.display = "block";
-      interviewerName.textContent = `${voice}`;
+      interviewerName.innerText = `Your TechTales Conversation with ${voice}`;
       const introText = `Hello, I'm ${voice}, your interviewer for a podcast called TechTales. Please tell us a little about yourself and what you want to talk about today.`;
       appendChatEntry(voice, introText);
 
@@ -275,7 +286,72 @@
     const actionBtn = document.getElementById("actionBtn");
     let actionState = "record"; // 'record' -> 'stop'
     let mediaRecorder;
+    let recognition;
+    let recognizing = false;
+    const liveTranscript = document.getElementById("liveTranscript");
     let chunks = [];
+    let liveEntry;
+
+    function setupLiveTranscription() {
+      if (!('webkitSpeechRecognition' in window)) {
+        console.warn("Web Speech API not supported.");
+        return;
+      }
+
+      recognition = new webkitSpeechRecognition();
+      recognition.continuous = true;
+      recognition.interimResults = true;
+      recognition.lang = "en-US";
+
+      let liveEntry;
+      recognition.onresult = (event) => {
+        let interim = "";
+        let final = "";
+
+        for (let i = event.resultIndex; i < event.results.length; ++i) {
+          const result = event.results[i];
+          if (result.isFinal) {
+            final += result[0].transcript;
+          } else {
+            interim += result[0].transcript;
+          }
+        }
+
+        // If liveEntry doesn't exist, create and append it
+        if (!liveEntry) {
+          liveEntry = document.createElement("div");
+          liveEntry.className = "chat-entry user";
+
+          const speakerEl = document.createElement("div");
+          speakerEl.className = "speaker";
+          speakerEl.textContent = "You";
+
+          const bubble = document.createElement("div");
+          bubble.className = "bubble";
+          bubble.textContent = final + interim;
+          bubble.id = "liveUserBubble";
+
+          liveEntry.appendChild(speakerEl);
+          liveEntry.appendChild(bubble);
+          chatLog.appendChild(liveEntry);
+        } else {
+          const bubble = document.getElementById("liveUserBubble");
+          if (bubble) {
+            bubble.textContent = final + interim;
+          }
+        }
+
+        // Removed liveTranscript.textContent = final + interim;
+      };
+
+      recognition.onerror = (e) => {
+        console.error("Speech recognition error", e);
+      };
+
+      recognition.onend = () => {
+        recognizing = false;
+      };
+    }
 
     actionBtn.addEventListener("click", async () => {
       if (actionState === "record") {
@@ -319,7 +395,21 @@
                 return;
               }
 
-              appendChatEntry("You", data.transcript || "[No transcript returned]");
+              // Removed appending new user chat entry; instead convert live bubble to permanent
+              const bubble = document.getElementById("liveUserBubble");
+              if (bubble) {
+                bubble.textContent = data.transcript || "[No transcript returned]";
+                bubble.removeAttribute("id");
+              } else {
+                appendChatEntry("You", data.transcript || "[No transcript returned]");
+              }
+
+              const liveBubble = document.getElementById("liveUserBubble");
+              if (liveBubble) {
+                liveBubble.removeAttribute("id");
+              }
+              liveEntry = null;
+              liveTranscript.textContent = "";
               appendChatEntry(selectedVoice, data.response || "[No response returned]");
               interviewerName.textContent = selectedVoice;
               if (data.audio_url) {
@@ -346,6 +436,9 @@
           };
 
           mediaRecorder.start();
+          setupLiveTranscription();
+          recognition.start();
+          recognizing = true;
           actionBtn.style.backgroundImage = "url('/static/stop.jpg')";
           actionBtn.title = "Stop Recording";
           actionState = "stop";
@@ -357,6 +450,11 @@
       } else if (actionState === "stop") {
         if (mediaRecorder && mediaRecorder.state !== "inactive") {
           mediaRecorder.stop();
+        }
+        if (recognizing) {
+          recognition.stop();
+          recognizing = false;
+          liveTranscript.textContent = "";
         }
         resetActionBtn();
       }
