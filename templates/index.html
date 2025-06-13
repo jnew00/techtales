@@ -81,13 +81,31 @@
       margin-left: auto;
       margin-right: auto;
     }
-    audio:not(:last-child) {
-      display: none;
+    .player-audio {
+      display: block;
+      margin: 1.5rem auto 0 auto;
+      max-width: 100%;
     }
     .intro-text {
       font-size: 1rem;
       color: #cbd5e1;
       margin-top: 1rem;
+    }
+    #recordBtn {
+      position: fixed;
+      bottom: 2rem;
+      right: 2rem;
+      background-color: transparent;
+      background-image: url('/static/play.jpg');
+      background-size: cover;
+      background-position: center;
+      border: none;
+      width: 64px;
+      height: 64px;
+      border-radius: 50%;
+      cursor: pointer;
+      z-index: 999;
+      display: none;
     }
   </style>
 </head>
@@ -135,27 +153,28 @@
   <div class="headline" id="conversationSection" style="display:none;">
     <h2 id="interviewerName"></h2>
     <p class="intro-text" id="introText"></p>
-    <audio id="introAudio" controls style="display:none;"></audio>
-    <audio id="audioPlayer" controls style="display:none;"></audio>
-    <button id="recordBtn" style="display:none;">🎤 Start Recording</button>
+    <button id="startPlayBtn"></button>
+    <button id="recordBtn"></button>
     <p class="label">You said:</p>
     <p id="transcript">...</p>
-    <p class="label">Claude replied:</p>
+    <p class="label">Response:</p>
     <p id="response">...</p>
+    <audio id="audioPlayer" controls class="player-audio"></audio>
   </div>
 
   <script>
     let selectedVoice = "";
+    let recording = false;
 
     const recordBtn = document.getElementById("recordBtn");
     const transcriptEl = document.getElementById("transcript");
     const responseEl = document.getElementById("response");
     const audioPlayer = document.getElementById("audioPlayer");
-    const introAudio = document.getElementById("introAudio");
     const introSection = document.getElementById("introSection");
     const conversationSection = document.getElementById("conversationSection");
     const interviewerName = document.getElementById("interviewerName");
     const introTextEl = document.getElementById("introText");
+    const startPlayBtn = document.getElementById("startPlayBtn");
 
     let mediaRecorder;
     let chunks = [];
@@ -190,7 +209,6 @@
       interviewerName.textContent = `${voice}`;
 
       const introText = `Hello, I'm ${voice}, your interviewer for a podcast called TechTales. Please tell us a little about yourself and what you want to talk about today.`;
-      // introTextEl.textContent = introText;
       typeText(introTextEl, introText);
 
       const res = await fetch("/intro", {
@@ -200,49 +218,86 @@
       });
 
       const data = await res.json();
-      introAudio.src = data.audio_url;
-      introAudio.style.display = "block";
-      introAudio.play();
+      if (data.audio_url) {
+        audioPlayer.src = data.audio_url;
+        audioPlayer.style.display = "block";
+        audioPlayer.play(); // Play immediately to sync with typing
+      }
 
-      introAudio.onended = () => {
-        recordBtn.style.display = "inline-block";
-      };
+      recordBtn.style.display = "inline-block";
+      startPlayBtn.style.display = "inline-block";
+      audioPlayer.scrollIntoView({ behavior: "smooth", block: "end" });
     }
+
+    startPlayBtn.addEventListener("click", () => {
+      audioPlayer.play();
+    });
 
     recordBtn.addEventListener("click", async () => {
       if (!mediaRecorder || mediaRecorder.state === "inactive") {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        mediaRecorder = new MediaRecorder(stream);
-        mediaRecorder.start();
-        recordBtn.textContent = "⏹️ Stop Recording";
-        chunks = [];
+        recordBtn.style.backgroundImage = "url('/static/stop.jpg')";
+        recording = true;
 
-        mediaRecorder.ondataavailable = (e) => chunks.push(e.data);
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+          mediaRecorder = new MediaRecorder(stream);
+          chunks = [];
 
-        mediaRecorder.onstop = async () => {
-          const blob = new Blob(chunks, { type: "audio/webm" });
-          const formData = new FormData();
-          formData.append("audio", blob, "input.webm");
-          formData.append("session_id", getSessionId());
-          formData.append("voice_id", selectedVoice);
+          mediaRecorder.ondataavailable = (e) => {
+            if (e.data.size > 0) chunks.push(e.data);
+          };
 
-          const res = await fetch("/process", {
-            method: "POST",
-            body: formData,
-          });
+          mediaRecorder.onstop = async () => {
+            recording = false;
+            const blob = new Blob(chunks, { type: "audio/webm" });
+            if (blob.size < 1000) {
+              alert("Recording failed. Please try again.");
+              recordBtn.style.backgroundImage = "url('/static/start.jpg')";
+              return;
+            }
 
-          const data = await res.json();
-          transcriptEl.textContent = data.transcript || "[No transcript returned]";
-          typeText(responseEl, data.response || "[No response returned]");
-          interviewerName.textContent = selectedVoice;
-          audioPlayer.src = data.audio_url;
-          audioPlayer.style.display = "block";
-          introAudio.style.display = "none";
-          audioPlayer.play();
-        };
-      } else {
+            const formData = new FormData();
+            formData.append("audio", blob, "input.webm");
+            formData.append("session_id", getSessionId());
+            formData.append("voice_id", selectedVoice);
+
+            try {
+              const res = await fetch("/process", {
+                method: "POST",
+                body: formData,
+              });
+
+              const data = await res.json();
+              if (!data.transcript || data.transcript.trim() === "") {
+                alert("No voice detected in the recording. Please try again.");
+                recordBtn.style.backgroundImage = "url('/static/play.jpg')";
+                return;
+              }
+
+              transcriptEl.textContent = data.transcript || "[No transcript returned]";
+              typeText(responseEl, data.response || "[No response returned]");
+              interviewerName.textContent = selectedVoice;
+              if (data.audio_url) {
+                audioPlayer.src = data.audio_url;
+                audioPlayer.style.display = "block";
+                audioPlayer.play();
+              }
+            } catch (err) {
+              alert("Processing error. Please check your microphone input or try reloading the page.");
+              console.error(err);
+            }
+
+            recordBtn.style.backgroundImage = "url('/static/play.jpg')";
+          };
+
+          mediaRecorder.start();
+        } catch (err) {
+          alert("Microphone access denied or not working.");
+          console.error(err);
+          recordBtn.style.backgroundImage = "url('/static/play.jpg')";
+        }
+      } else if (recording) {
         mediaRecorder.stop();
-        recordBtn.textContent = "🎤 Start Recording";
       }
     });
   </script>

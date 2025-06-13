@@ -68,7 +68,7 @@ def process():
     if len(conversation) == 1:
         conversation = [{"role": "user", "content": [{"type": "text", "text": transcript}]}]
 
-    response_text = chat_with_claude(conversation)
+    response_text = chat_with_claude(conversation, voice_id)
     save_message(session_id, "assistant", response_text)
 
     polly_response = polly.synthesize_speech(
@@ -92,12 +92,27 @@ def process():
 
 
 # Claude + Dynamo functions
-def chat_with_claude(messages):
+def chat_with_claude(messages, voice_id):
+    # Determine style prompt based on voice
+    style_prompts = {
+        "Joanna": "You are Joanna, a warm and thoughtful podcast interviewer with a knack for drawing out personal stories. ",
+        "Matthew": "You're Matthew, a bold, funky host with a loud laugh and a love of tangents. Keep things lively! ",
+        "Ivy": "You're Ivy, introspective and poetic. You ask questions like a spoken word artist probing for deeper truths. ",
+        "Brian": "You're Brian, a laid-back, sarcastic host who keeps it casual but insightful and speaks like Seinfeld.",
+        "Amy": "You're Amy, curious and enthusiastic, with a contagious energy and lots of follow-ups."
+    }
+    default_prompt = "You are an interviewer for a podcast. Keep responses brief (1-2 sentences), ask insightful follow-up questions, and stay on topic unless the user signals otherwise. Avoid rambling or unnecessary elaboration."
+    voice_style = style_prompts.get(voice_id, "")
+    system_prompt = f"{voice_style} {default_prompt}"
+
+        # Remove any system message from the messages list
+    filtered_messages = [m for m in messages if m.get("role") != "system"]
     body = {
         "anthropic_version": "bedrock-2023-05-31",
-        "max_tokens": 1024,
+        "max_tokens": 500,
         "temperature": 0.7,
-        "messages": messages
+        "system": system_prompt,
+        "messages": filtered_messages
     }
     response = bedrock.invoke_model(
         modelId=model_id,
