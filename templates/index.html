@@ -22,7 +22,7 @@
       justify-content: space-between;
       align-items: center;
       max-width: 1200px;
-      margin-bottom: 4rem;
+      margin: 0 auto 1rem auto;
     }
     .nav-links button {
       background: transparent;
@@ -153,7 +153,9 @@
 </head>
 <body>
   <header>
-    <div><strong>TECHTALES</strong></div>
+    <div style="display: flex; align-items: center; height: 100px; min-width: 200px;">
+      <img src="/static/techtales-logo.png" alt="TechTales Logo" style="height: 200px; width: auto; object-fit: contain;" />
+    </div>
     <div class="nav-links">
       <button>Explore</button>
       <button>Sign Up</button>
@@ -199,9 +201,9 @@
     <audio id="audioPlayer" controls class="player-audio" style="display:none;"></audio>
   </div>
 
-  <button id="actionBtn" title="Start" style="background-color: transparent; background-image: url('/static/play.jpg'); background-size: cover; background-position: center; border: none; width: 64px; height: 64px; border-radius: 50%; cursor: pointer; position: fixed; bottom: 2rem; right: 2rem; z-index: 999;"></button>
+  <button id="actionBtn" title="Start" style="display:none; background-color: transparent; background-image: url('/static/play.jpg'); background-size: cover; background-position: center; border: none; width: 64px; height: 64px; border-radius: 50%; cursor: pointer; position: fixed; bottom: 2rem; right: 2rem; z-index: 999;"></button>
 
-  <button id="endConversationBtn" style="margin-top: 2rem; background-color: #ef4444; color: white; border: none; padding: 0.75rem 1.5rem; border-radius: 8px; font-weight: bold; cursor: pointer;">
+  <button id="endConversationBtn" style="display:none; margin-top: 2rem; background-color: #ef4444; color: white; border: none; padding: 0.75rem 1.5rem; border-radius: 8px; font-weight: bold; cursor: pointer;">
     End Conversation
   </button>
 
@@ -274,6 +276,8 @@
       selectedVoice = voice;
       introSection.style.display = "none";
       conversationSection.style.display = "block";
+      document.getElementById("actionBtn").style.display = "block";
+      document.getElementById("endConversationBtn").style.display = "block";
       interviewerName.innerText = `Your TechTales Conversation with ${voice}`;
       const introText = `Hello, I'm ${voice}, your interviewer for a podcast called TechTales. Please tell us a little about yourself and what you want to talk about today.`;
       appendChatEntry(voice, introText);
