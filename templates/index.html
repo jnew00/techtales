@@ -213,16 +213,25 @@
     .chat-entry.ai {
       justify-content: flex-start;
     }
-    .chat-entry .speaker {
+    /* .chat-entry .speaker {
       font-weight: bold;
       flex-shrink: 0;
       margin-right: 0.5rem;
     }
     .chat-entry.ai .speaker {
-      color: #fbbf24; /* gold for AI */
+      color: #fbbf24; 
     }
     .chat-entry.user .speaker {
-      color: #60a5fa; /* blue for user */
+      color: #60a5fa; 
+    } */
+    .chat-entry img.avatar {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      object-fit: cover;
+      margin-right: 0.5rem;
+      flex-shrink: 0;
+      border: 2px solid #334155;
     }
     .chat-entry .bubble {
       padding: 0.75rem;
@@ -260,12 +269,12 @@
     <p>Select your interviewer:</p>
     <div class="interviewer-grid">
       <div class="interviewer-card" onclick="startConversation('Joanna')">
-        <img src="/static/joanne.png" alt="Joanna" />
+        <img src="/static/joanna.png" alt="Joanna" />
         <p><strong>Joanna</strong></p>
         <p>Friendly & professional (US)</p>
       </div>
       <div class="interviewer-card" onclick="startConversation('Matthew')">
-        <img src="/static/matt.png" alt="Matthew" />
+        <img src="/static/matthew.png" alt="Matthew" />
         <p><strong>Matthew</strong></p>
         <p>Warm & steady (US)</p>
       </div>
@@ -327,9 +336,10 @@
       const entry = document.createElement("div");
       entry.className = "chat-entry " + (speaker === "You" ? "user" : "ai");
 
-      const speakerEl = document.createElement("div");
-      speakerEl.className = "speaker";
-      speakerEl.textContent = speaker;
+      const img = document.createElement("img");
+      img.className = "avatar";
+      img.src = speaker === "You" ? "/static/user.png" : `/static/${selectedVoice.toLowerCase()}.png`;
+      img.alt = speaker;
 
       const bubble = document.createElement("div");
       bubble.className = "bubble";
@@ -339,7 +349,7 @@
         typeText(bubble, message);
       }
 
-      entry.appendChild(speakerEl);
+      entry.appendChild(img);
       entry.appendChild(bubble);
       chatLog.appendChild(entry);
       chatLog.scrollTop = chatLog.scrollHeight;
@@ -436,16 +446,17 @@
           liveEntry = document.createElement("div");
           liveEntry.className = "chat-entry user";
 
-          const speakerEl = document.createElement("div");
-          speakerEl.className = "speaker";
-          speakerEl.textContent = "You";
+          const img = document.createElement("img");
+          img.className = "avatar";
+          img.src = "/static/user.png";
+          img.alt = "You";
 
           const bubble = document.createElement("div");
           bubble.className = "bubble";
           bubble.textContent = final + interim;
           bubble.id = "liveUserBubble";
 
-          liveEntry.appendChild(speakerEl);
+          liveEntry.appendChild(img);
           liveEntry.appendChild(bubble);
           chatLog.appendChild(liveEntry);
         } else {
